@@ -17,6 +17,7 @@
         <powermock.version>2.0.9</powermock.version>
         <jersey.version>2.39</jersey.version>
         <jackson.version>2.13.5</jackson.version>
+        <artifactory.url>https://bandwidth.jfrog.io/bandwidth/maven</artifactory.url>
     </properties>
 
     <scm>
@@ -32,11 +33,24 @@
             <url>https://jaspersoft.jfrog.io/jaspersoft/jaspersoft-clients-releases</url>
         </repository>
         <repository>
-            <id>central</id>
+            <id>jrs-ce</id>
             <name>jaspersoft-releases</name>
             <url>https://jaspersoft.jfrog.io/jaspersoft/jrs-ce-releases</url>
         </repository>
     </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>artifactory</id>
+            <name>artifactory-release</name>
+            <url>${artifactory.url}</url>
+        </repository>
+        <snapshotRepository>
+            <id>artifactory</id>
+            <name>artifactory-snapshot</name>
+            <url>${artifactory.url}</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <dependencies>
         <dependency>
