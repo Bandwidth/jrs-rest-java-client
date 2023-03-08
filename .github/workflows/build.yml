@@ -18,7 +18,7 @@ jobs:
         uses: whelk-io/maven-settings-xml-action@v10
         with:
           repositories: '[{ "id": "artifactory", "url": "https://bandwidth.jfrog.io/bandwidth/maven" }]'
-          servers: '[{ "id": "artifactory", "username": "${{secrets.IRIS_ARTIFACTORY_USERNAME}}", "password": "${{secrets.IRIS_ARTIFACTORY_PASSWORD}}" }]'
+          servers: '[{ "id": "artifactory", "username": "${{secrets.NUMBERS_ARTIFACTORY_WRITE_USER}}", "password": "${{secrets.NUMBERS_ARTIFACTORY_WRITE_API_KEY}}" }]'
 
       - uses: actions/setup-java@v3
         with:
