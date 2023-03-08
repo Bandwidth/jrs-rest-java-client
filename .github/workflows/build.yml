@@ -1,0 +1,50 @@
+name: Build
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: maven-settings-xml-action
+        uses: whelk-io/maven-settings-xml-action@v10
+        with:
+          repositories: '[{ "id": "artifactory", "url": "https://bandwidth.jfrog.io/bandwidth/maven" }]'
+          servers: '[{ "id": "artifactory", "username": "${{secrets.IRIS_ARTIFACTORY_USERNAME}}", "password": "${{secrets.IRIS_ARTIFACTORY_PASSWORD}}" }]'
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+          cache: 'maven'
+
+      - name: Create tag
+        id: tag
+        if: github.event_name != 'pull_request'
+        run: |
+          hash=$(echo -n "${{ github.sha }}-$(uuidgen)" | sha1sum)
+          version=v$(date +"%Y-%m-%d")-${hash:0:4}
+          echo "Tag name = $version"
+          echo "::set-output name=name::$version"
+
+          git config user.name bw-devops
+          git config user.email devopsokta@bandwidth.com
+          git tag -a $version -m "Creating $version from automated build"
+          git push origin $version
+
+      - name: Set version
+        if: github.event_name != 'pull_request'
+        run: |
+          mvn versions:set -DnewVersion=${{ steps.tag.outputs.name }} -B
+
+      - name: Build
+        run: |
+          mvn clean deploy -B
