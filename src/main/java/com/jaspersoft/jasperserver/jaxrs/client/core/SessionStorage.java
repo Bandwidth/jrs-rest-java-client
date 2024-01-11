@@ -66,7 +66,6 @@ public class SessionStorage {
         init();
     }
 
-
     protected Client getRawClient() {
         return client;
     }
@@ -124,6 +123,7 @@ public class SessionStorage {
         if (cookies != null) {
             rootTarget.register(new SessionOutputFilter(this));
         }
+
         if (Boolean.TRUE.equals(configuration.getLogHttp())) {
             rootTarget.property(LoggingFeature.LOGGING_FEATURE_LOGGER_LEVEL, "INFO");
             rootTarget.register(initLoggingFilter());
