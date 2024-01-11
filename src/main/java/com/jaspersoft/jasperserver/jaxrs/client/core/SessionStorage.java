@@ -21,27 +21,27 @@
 
 package com.jaspersoft.jasperserver.jaxrs.client.core;
 
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import com.jaspersoft.jasperserver.jaxrs.client.filters.SessionOutputFilter;
 import com.jaspersoft.jasperserver.jaxrs.client.providers.CustomRepresentationTypeProvider;
-import java.security.SecureRandom;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
-import java.util.logging.Logger;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.NewCookie;
-import org.codehaus.jackson.jaxrs.JacksonJsonProvider;
-import org.codehaus.jackson.map.DeserializationConfig;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.filter.LoggingFilter;
 import org.glassfish.jersey.jackson.JacksonFeature;
+import org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJsonProvider;
+import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.bridge.SLF4JBridgeHandler;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import java.security.SecureRandom;
+import java.util.Locale;
+import java.util.TimeZone;
+import java.util.logging.Logger;
 
 
 public class SessionStorage {
@@ -58,36 +58,13 @@ public class SessionStorage {
 
     private Client client;
 
-    /**
-     * @deprecated
-     */
-    public SessionStorage(RestClientConfiguration configuration, AuthenticationCredentials credentials) {
-        this.configuration = configuration;
-        this.credentials = credentials;
-        init();
-    }
-
-    /**
-     * @deprecated
-     */
-    public SessionStorage(RestClientConfiguration configuration, AuthenticationCredentials credentials,
-            TimeZone userTimeZone) {
-        this.configuration = configuration;
-        this.credentials = credentials;
-        this.userTimeZone = userTimeZone;
-        init();
-    }
-
-
-    public SessionStorage(RestClientConfiguration configuration, AuthenticationCredentials credentials,
-            Locale userLocale, TimeZone userTimeZone) {
+    public SessionStorage(RestClientConfiguration configuration, AuthenticationCredentials credentials, Locale userLocale, TimeZone userTimeZone) {
         this.configuration = configuration;
         this.credentials = credentials;
         this.userTimeZone = userTimeZone;
         this.userLocale = userLocale;
         init();
     }
-
 
     protected Client getRawClient() {
         return client;
@@ -100,12 +77,7 @@ public class SessionStorage {
     private void initSSL(ClientBuilder clientBuilder) {
         try {
             SSLContext sslContext = SSLContext.getInstance("SSL");
-            HostnameVerifier hostnameVerifier = new HostnameVerifier() {
-                @Override
-                public boolean verify(String s, SSLSession sslSession) {
-                    return true;
-                }
-            };
+            HostnameVerifier hostnameVerifier = (s, sslSession) -> true;
             sslContext.init(null, configuration.getTrustManagers(), new SecureRandom());
 
             clientBuilder.sslContext(sslContext);
@@ -140,12 +112,11 @@ public class SessionStorage {
     }
 
     protected WebTarget configClient() {
-        JacksonJsonProvider customRepresentationTypeProvider = new CustomRepresentationTypeProvider()
-                .configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
+        JacksonJsonProvider customRepresentationTypeProvider = new CustomRepresentationTypeProvider();
         rootTarget = client.target(configuration.getJasperReportsServerUrl());
         rootTarget
                 .register(customRepresentationTypeProvider)
+                .register(JaxbAnnotationModule.class)
                 .register(JacksonFeature.class)
                 .register(MultiPartFeature.class);
 
@@ -153,19 +124,19 @@ public class SessionStorage {
             rootTarget.register(new SessionOutputFilter(this));
         }
 
-        if (configuration.getLogHttp()) {
+        if (Boolean.TRUE.equals(configuration.getLogHttp())) {
+            rootTarget.property(LoggingFeature.LOGGING_FEATURE_LOGGER_LEVEL, "INFO");
             rootTarget.register(initLoggingFilter());
         }
         return rootTarget;
     }
 
-    private LoggingFilter initLoggingFilter() {
+    private LoggingFeature initLoggingFilter() {
         Logger logger = Logger.getLogger(this.getClass().getName());
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
-
-        return new LoggingFilter(logger,
-                configuration.getLogHttpEntity());
+        LoggingFeature.Verbosity verbosity = Boolean.TRUE.equals(configuration.getLogHttpEntity()) ? LoggingFeature.Verbosity.PAYLOAD_ANY : LoggingFeature.Verbosity.HEADERS_ONLY;
+        return new LoggingFeature(logger, verbosity);
     }
 
 
@@ -201,9 +172,7 @@ public class SessionStorage {
         if (this.cookies == null) {
             this.cookies = newCookies;
         } else if (newCookies != null && !newCookies.isEmpty()) {
-            for (Map.Entry<String, NewCookie> cookie : newCookies.entrySet()) {
-                this.cookies.put(cookie.getKey(), cookie.getValue());
-            }
+            this.cookies.putAll(newCookies);
         }
     }
 
